@@ -122,6 +122,8 @@ const keyMap = (srcs) => new Map(srcs.map((s) => [imgKey(s), s]));
 // Attach (waiting for upload to make the send button ready), fill, send —
 // then VERIFY the message actually posted (composer cleared) before returning.
 async function sendMessage(page, site, text, attachFiles) {
+  for (const sel of site.dismiss ?? []) await page.locator(sel).first().click({ timeout: 1500 }).catch(() => {});
+  const userBaseline = (await snapshot(page, site)).userMsgs;
   const box = site.box(page);
   await box.waitFor({ timeout: 30_000 });
   if (attachFiles?.length) {
