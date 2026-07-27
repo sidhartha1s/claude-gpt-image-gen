@@ -69,7 +69,8 @@ async function withPage(profile, fn) {
 // so identity is the file id (id=file_xxx), NOT the full URL. Fallback: full src.
 const imgKey = (src) => src.match(/[?&]id=(file_[A-Za-z0-9]+)/)?.[1] ?? src;
 
-const ERROR_PHRASES = ["wasn't able to", 'unable to', "can't create", 'error on my side', 'something went wrong'];
+// apostrophe-free substrings: ChatGPT uses curly quotes ("wasn’t"), so never match on '
+const ERROR_PHRASES = ['able to generate the image', 'unable to generate', 'error on my side', 'something went wrong', 'image generation service encountered'];
 
 const SITES = {
   chatgpt: {
