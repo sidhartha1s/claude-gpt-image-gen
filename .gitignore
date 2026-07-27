@@ -1,0 +1,7 @@
+# NEVER commit: live browser profiles hold Google/OpenAI session cookies (= logins)
+profiles/
+# runtime state + outputs
+out/
+usage.json
+sessions.json
+node_modules/

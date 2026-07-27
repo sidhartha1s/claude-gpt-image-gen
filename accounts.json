@@ -1,0 +1,6 @@
+{
+  "chatgpt-simplotel": { "site": "chatgpt", "account": "sidhartha@simplotel.com", "dir": "simplotel" },
+  "chatgpt-sid":       { "site": "chatgpt", "account": "sidclashes2much@gmail.com", "dir": "sid" },
+  "gemini-simplotel":  { "site": "gemini",  "account": "sidhartha@simplotel.com", "dir": "simplotel" },
+  "gemini-sid":        { "site": "gemini",  "account": "sidclashes2much@gmail.com", "dir": "sid" }
+}
