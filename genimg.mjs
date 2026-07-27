@@ -151,10 +151,16 @@ async function sendMessage(page, site, text, attachFiles) {
     if (!cleared) await site.sendReady(page).click({ timeout: 2000 }).catch(() => {});
   }
   if (!cleared) throw new Error('Message did not send within 60s (composer never cleared).');
-  // composer cleared — require the POSITIVE signal: our message visible in the thread
+  // composer cleared — require the POSITIVE signal: the LAST user message in the thread is ours.
+  // (text match, not count: ChatGPT virtualizes long threads so element counts don't grow)
+  const needle = text.replace(/\s+/g, ' ').trim().slice(0, 60);
   const posted = await page.waitForFunction(
-    ({ sel, n }) => document.querySelectorAll(sel).length > n,
-    { sel: site.userSel, n: userBaseline },
+    ({ sel, needle }) => {
+      const els = document.querySelectorAll(sel);
+      const last = els[els.length - 1];
+      return !!last && last.innerText.replace(/\s+/g, ' ').includes(needle);
+    },
+    { sel: site.userSel, needle },
     { timeout: 10_000 },
   ).then(() => true, () => false);
   if (!posted) throw new Error('Composer cleared but the message never appeared in the thread (send swallowed).');
