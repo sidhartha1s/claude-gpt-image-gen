@@ -81,6 +81,7 @@ const SITES = {
     imgSel: '[class*="imagegen-image"] img[src*="backend-api/estuary/content"], [class*="imagegen-image"] img[src*="oaiusercontent"]',
     respSel: 'article',
     boxSel: '#prompt-textarea',
+    userSel: 'article[data-message-author-role="user"], [data-message-author-role="user"]',
     box: (page) => page.locator('#prompt-textarea'),
     sendReady: (page) => page.locator('button[data-testid="send-button"]:not([disabled]):not([aria-disabled="true"])'),
     chatUrl: (page) => /\/c\//.test(page.url()) ? page.url() : null,
