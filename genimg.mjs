@@ -79,9 +79,9 @@ const SITES = {
     // imagegen-image wrapper marks GENERATED images; user-uploaded attachments also serve from
     // backend-api/estuary and must not count (they lack this wrapper)
     imgSel: '[class*="imagegen-image"] img[src*="backend-api/estuary/content"], [class*="imagegen-image"] img[src*="oaiusercontent"]',
-    respSel: 'article',
+    respSel: '[data-message-author-role="assistant"]',
     boxSel: '#prompt-textarea',
-    userSel: 'article[data-message-author-role="user"], [data-message-author-role="user"]',
+    userSel: '[data-message-author-role="user"]',
     box: (page) => page.locator('#prompt-textarea'),
     sendReady: (page) => page.locator('button[data-testid="send-button"]:not([disabled]):not([aria-disabled="true"])'),
     chatUrl: (page) => /\/c\//.test(page.url()) ? page.url() : null,
