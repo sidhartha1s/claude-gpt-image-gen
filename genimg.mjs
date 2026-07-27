@@ -139,27 +139,25 @@ async function sendMessage(page, site, text, attachFiles) {
     await site.sendReady(page).waitFor({ timeout: SEND_TIMEOUT_MS }).catch(() => {});
   }
   const deadline = Date.now() + SEND_TIMEOUT_MS;
-  while (Date.now() < deadline) {
+  let cleared = false;
+  while (Date.now() < deadline && !cleared) {
     await page.keyboard.press('Enter');
-    try {
-      await page.waitForFunction(
-        (sel) => !(document.querySelector(sel)?.innerText ?? '').trim(),
-        site.boxSel,
-        { timeout: 5000 },
-      );
-      // composer cleared — now require the POSITIVE signal: our message visible in the thread
-      await page.waitForFunction(
-        ({ sel, n }) => document.querySelectorAll(sel).length > n,
-        { sel: site.userSel, n: userBaseline },
-        { timeout: 10_000 },
-      ).catch(() => { throw new Error('Composer cleared but the message never appeared in the thread.'); });
-      return;
-    } catch {
-      // not sent yet (upload processing, or Enter ignored) — try the send button, then loop
-      await site.sendReady(page).click({ timeout: 2000 }).catch(() => {});
-    }
+    cleared = await page.waitForFunction(
+      (sel) => !(document.querySelector(sel)?.innerText ?? '').trim(),
+      site.boxSel,
+      { timeout: 5000 },
+    ).then(() => true, () => false);
+    // not sent yet (upload processing, or Enter ignored) — try the send button, then loop
+    if (!cleared) await site.sendReady(page).click({ timeout: 2000 }).catch(() => {});
   }
-  throw new Error('Message did not send within 60s (composer never cleared).');
+  if (!cleared) throw new Error('Message did not send within 60s (composer never cleared).');
+  // composer cleared — require the POSITIVE signal: our message visible in the thread
+  const posted = await page.waitForFunction(
+    ({ sel, n }) => document.querySelectorAll(sel).length > n,
+    { sel: site.userSel, n: userBaseline },
+    { timeout: 10_000 },
+  ).then(() => true, () => false);
+  if (!posted) throw new Error('Composer cleared but the message never appeared in the thread (send swallowed).');
 }
 
 // Waits for an image with a NEW key (vs baseline) or a generation-error message.
