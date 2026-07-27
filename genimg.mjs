@@ -239,7 +239,9 @@ async function generateOnPage(page, ctx, profile, { text, chatUrl = null, attach
     }
     if (attempt++ >= MAX_RETRIES) throw new Error(`Generation failed after ${attempt} attempt(s): ${res.error}`);
     console.error(`[retry] ${res.error}`);
-    prompt = 'Please try generating that image again.';
+    // ChatGPT refuses in-place "try again" after a backend error — a retry must be a fresh
+    // image request, so resend the original prompt verbatim
+    prompt = text;
   }
 }
 
