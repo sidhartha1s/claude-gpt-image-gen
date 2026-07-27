@@ -147,7 +147,13 @@ async function sendMessage(page, site, text, attachFiles) {
         site.boxSel,
         { timeout: 5000 },
       );
-      return; // composer cleared -> message posted
+      // composer cleared — now require the POSITIVE signal: our message visible in the thread
+      await page.waitForFunction(
+        ({ sel, n }) => document.querySelectorAll(sel).length > n,
+        { sel: site.userSel, n: userBaseline },
+        { timeout: 10_000 },
+      ).catch(() => { throw new Error('Composer cleared but the message never appeared in the thread.'); });
+      return;
     } catch {
       // not sent yet (upload processing, or Enter ignored) — try the send button, then loop
       await site.sendReady(page).click({ timeout: 2000 }).catch(() => {});
