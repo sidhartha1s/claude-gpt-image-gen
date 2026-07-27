@@ -69,7 +69,8 @@ async function withPage(profile, fn) {
 // so identity is the file id (id=file_xxx), NOT the full URL. Fallback: full src.
 const imgKey = (src) => src.match(/[?&]id=(file_[A-Za-z0-9]+)/)?.[1] ?? src;
 
-const ERROR_PHRASES = ["wasn't able to", 'unable to', "can't create", 'error on my side', 'something went wrong'];
+// apostrophe-free substrings: ChatGPT uses curly quotes ("wasn’t"), so never match on '
+const ERROR_PHRASES = ['able to generate the image', 'unable to generate', 'error on my side', 'something went wrong', 'image generation service encountered'];
 
 const SITES = {
   chatgpt: {
@@ -80,6 +81,7 @@ const SITES = {
     imgSel: '[class*="imagegen-image"] img[src*="backend-api/estuary/content"], [class*="imagegen-image"] img[src*="oaiusercontent"]',
     respSel: 'article',
     boxSel: '#prompt-textarea',
+    userSel: 'article[data-message-author-role="user"], [data-message-author-role="user"]',
     box: (page) => page.locator('#prompt-textarea'),
     sendReady: (page) => page.locator('button[data-testid="send-button"]:not([disabled]):not([aria-disabled="true"])'),
     chatUrl: (page) => /\/c\//.test(page.url()) ? page.url() : null,
@@ -90,6 +92,8 @@ const SITES = {
     imgSel: 'model-response img[src*="googleusercontent"], generated-image img',
     respSel: 'model-response',
     boxSel: 'rich-textarea .ql-editor',
+    userSel: 'user-query',
+    dismiss: ['button:has-text("Not now")', 'button[aria-label="Close"]'], // first-run onboarding modals block the composer
     unstableSrc: true, // blob: srcs rotate on re-render — freshness = new response containing an image
     box: (page) => page.locator('rich-textarea .ql-editor, div[contenteditable="true"]').first(),
     sendReady: (page) => page.locator('button[aria-label*="Send"]:not([aria-disabled="true"])'),
@@ -105,14 +109,21 @@ async function snapshot(page, site) {
     const withImg = resps.filter((r) => r.querySelector(imgSel));
     const errCount = resps
       .filter((a) => { const t = a.innerText?.toLowerCase() ?? ''; return phrases.some((p) => t.includes(p)); }).length;
-    return { srcs, errCount, imgResponses: withImg.length, lastRespImg: withImg.at(-1)?.querySelector(imgSel)?.src ?? null };
-  }, { imgSel: site.imgSel, respSel: site.respSel, phrases: ERROR_PHRASES });
+    return {
+      srcs, errCount,
+      imgResponses: withImg.length,
+      lastRespImg: withImg.at(-1)?.querySelector(imgSel)?.src ?? null,
+      userMsgs: userSel ? document.querySelectorAll(userSel).length : 0,
+    };
+  }, { imgSel: site.imgSel, respSel: site.respSel, userSel: site.userSel ?? null, phrases: ERROR_PHRASES });
 }
 const keyMap = (srcs) => new Map(srcs.map((s) => [imgKey(s), s]));
 
 // Attach (waiting for upload to make the send button ready), fill, send —
 // then VERIFY the message actually posted (composer cleared) before returning.
 async function sendMessage(page, site, text, attachFiles) {
+  for (const sel of site.dismiss ?? []) await page.locator(sel).first().click({ timeout: 1500 }).catch(() => {});
+  const userBaseline = (await snapshot(page, site)).userMsgs;
   const box = site.box(page);
   await box.waitFor({ timeout: 30_000 });
   if (attachFiles?.length) {
@@ -128,21 +139,25 @@ async function sendMessage(page, site, text, attachFiles) {
     await site.sendReady(page).waitFor({ timeout: SEND_TIMEOUT_MS }).catch(() => {});
   }
   const deadline = Date.now() + SEND_TIMEOUT_MS;
-  while (Date.now() < deadline) {
+  let cleared = false;
+  while (Date.now() < deadline && !cleared) {
     await page.keyboard.press('Enter');
-    try {
-      await page.waitForFunction(
-        (sel) => !(document.querySelector(sel)?.innerText ?? '').trim(),
-        site.boxSel,
-        { timeout: 5000 },
-      );
-      return; // composer cleared -> message posted
-    } catch {
-      // not sent yet (upload processing, or Enter ignored) — try the send button, then loop
-      await site.sendReady(page).click({ timeout: 2000 }).catch(() => {});
-    }
+    cleared = await page.waitForFunction(
+      (sel) => !(document.querySelector(sel)?.innerText ?? '').trim(),
+      site.boxSel,
+      { timeout: 5000 },
+    ).then(() => true, () => false);
+    // not sent yet (upload processing, or Enter ignored) — try the send button, then loop
+    if (!cleared) await site.sendReady(page).click({ timeout: 2000 }).catch(() => {});
   }
-  throw new Error('Message did not send within 60s (composer never cleared).');
+  if (!cleared) throw new Error('Message did not send within 60s (composer never cleared).');
+  // composer cleared — require the POSITIVE signal: our message visible in the thread
+  const posted = await page.waitForFunction(
+    ({ sel, n }) => document.querySelectorAll(sel).length > n,
+    { sel: site.userSel, n: userBaseline },
+    { timeout: 10_000 },
+  ).then(() => true, () => false);
+  if (!posted) throw new Error('Composer cleared but the message never appeared in the thread (send swallowed).');
 }
 
 // Waits for an image with a NEW key (vs baseline) or a generation-error message.
@@ -224,7 +239,9 @@ async function generateOnPage(page, ctx, profile, { text, chatUrl = null, attach
     }
     if (attempt++ >= MAX_RETRIES) throw new Error(`Generation failed after ${attempt} attempt(s): ${res.error}`);
     console.error(`[retry] ${res.error}`);
-    prompt = 'Please try generating that image again.';
+    // ChatGPT refuses in-place "try again" after a backend error — a retry must be a fresh
+    // image request, so resend the original prompt verbatim
+    prompt = text;
   }
 }
 
