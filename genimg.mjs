@@ -92,6 +92,8 @@ const SITES = {
     imgSel: 'model-response img[src*="googleusercontent"], generated-image img',
     respSel: 'model-response',
     boxSel: 'rich-textarea .ql-editor',
+    userSel: 'user-query',
+    dismiss: ['button:has-text("Not now")', 'button[aria-label="Close"]'], // first-run onboarding modals block the composer
     unstableSrc: true, // blob: srcs rotate on re-render — freshness = new response containing an image
     box: (page) => page.locator('rich-textarea .ql-editor, div[contenteditable="true"]').first(),
     sendReady: (page) => page.locator('button[aria-label*="Send"]:not([aria-disabled="true"])'),
