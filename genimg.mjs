@@ -109,8 +109,13 @@ async function snapshot(page, site) {
     const withImg = resps.filter((r) => r.querySelector(imgSel));
     const errCount = resps
       .filter((a) => { const t = a.innerText?.toLowerCase() ?? ''; return phrases.some((p) => t.includes(p)); }).length;
-    return { srcs, errCount, imgResponses: withImg.length, lastRespImg: withImg.at(-1)?.querySelector(imgSel)?.src ?? null };
-  }, { imgSel: site.imgSel, respSel: site.respSel, phrases: ERROR_PHRASES });
+    return {
+      srcs, errCount,
+      imgResponses: withImg.length,
+      lastRespImg: withImg.at(-1)?.querySelector(imgSel)?.src ?? null,
+      userMsgs: userSel ? document.querySelectorAll(userSel).length : 0,
+    };
+  }, { imgSel: site.imgSel, respSel: site.respSel, userSel: site.userSel ?? null, phrases: ERROR_PHRASES });
 }
 const keyMap = (srcs) => new Map(srcs.map((s) => [imgKey(s), s]));
 
