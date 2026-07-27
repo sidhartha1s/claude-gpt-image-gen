@@ -103,7 +103,7 @@ const SITES = {
 
 // One DOM round-trip per poll tick: image srcs, responses-containing-images, error-text count.
 async function snapshot(page, site) {
-  return page.evaluate(({ imgSel, respSel, userSel, phrases }) => {
+  return page.evaluate(({ imgSel, respSel, phrases }) => {
     const srcs = [...document.querySelectorAll(imgSel)].map((i) => i.src).filter(Boolean);
     const resps = [...document.querySelectorAll(respSel)];
     const withImg = resps.filter((r) => r.querySelector(imgSel));
