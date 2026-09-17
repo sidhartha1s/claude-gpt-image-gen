@@ -1,4 +1,4 @@
-# webgen skill
+# webgen skill (repo: claude-gpt-image-gen)
 
 Generate and edit images through the ChatGPT / Gemini **web UIs** using your own logged-in browser. No API keys, no per-image cost; it spends the account's subscription quota.
 

@@ -17,7 +17,11 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const USAGE_FILE = path.join(ROOT, 'usage.json');
 const SESSIONS_FILE = path.join(ROOT, 'sessions.json');
-const CHROME = process.env.WEBGEN_CHROME ?? 'C:/Program Files/Google/Chrome/Application/chrome.exe';
+const DEFAULT_CHROME = {
+  win32: 'C:/Program Files/Google/Chrome/Application/chrome.exe',
+  darwin: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+}[process.platform] ?? '/usr/bin/google-chrome';
+const CHROME = process.env.WEBGEN_CHROME ?? DEFAULT_CHROME;
 const GEN_TIMEOUT_MS = 180_000;
 const SEND_TIMEOUT_MS = 60_000;
 const MAX_RETRIES = 1;
