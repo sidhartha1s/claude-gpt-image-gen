@@ -4,7 +4,7 @@ Generate and edit images through the ChatGPT / Gemini **web UIs** using your own
 
 ## Install
 
-Copy this folder to `~/.claude/skills/webgen/` (Claude Code picks it up on next start), then:
+Share the packaged `webgen.skill` archive (or a copy of the working tree without `.git`), never a clone of this repo. Unzip / copy it to `~/.claude/skills/webgen/` (Claude Code picks it up on next start), then:
 
 ```bash
 cd ~/.claude/skills/webgen/scripts
