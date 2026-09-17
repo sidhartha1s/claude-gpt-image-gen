@@ -1,44 +1,37 @@
-# webgen
+# webgen skill
 
-Playwright CLI that generates images through the ChatGPT and Gemini web UIs (subscription quota, not their APIs), driven by persistent logged-in Chrome profiles.
+Generate and edit images through the ChatGPT / Gemini **web UIs** using your own logged-in browser. No API keys, no per-image cost; it spends the account's subscription quota.
 
-## What it does
-- Drives real, headed Chrome with a saved login profile per account. One Chrome profile directory per email is shared between chatgpt.com and gemini.google.com.
-- Generates images, follows up in the last conversation, uploads and edits existing images, and re-downloads the newest image from a chat.
-- Tracks profile-to-site mapping (`accounts.json`), last conversation per profile (`sessions.json`), and per-day usage (`usage.json`).
+## Install
 
-## Quick start
+Share the packaged `webgen.skill` archive (or a copy of the working tree without `.git`), never a clone of this repo. Unzip / copy it to `~/.claude/skills/webgen/` (Claude Code picks it up on next start), then:
+
+```bash
+cd ~/.claude/skills/webgen/scripts
+npm install
+cp accounts.example.json accounts.json   # put your own email(s) in
+node genimg.mjs login chatgpt-work       # log in to chatgpt.com and gemini.google.com in the window that opens, then close it
 ```
-npm install                                # playwright-core only
-node genimg.mjs login chatgpt-simplotel    # opens Chrome, log in, close the window
+
+Requires Node 18+ and Google Chrome at the default Windows path (override with `WEBGEN_CHROME=<path to chrome.exe>`).
+
+## Use
+
+Ask Claude for an image ("make me a hero image of ...", "edit this photo to ...", "iterate on the last one, warmer light"). The skill runs the CLI for you. Or call it directly:
+
+```bash
+node genimg.mjs gen  chatgpt-work "isometric illustration of a hotel lobby, soft daylight" --out lobby.png
+node genimg.mjs iter chatgpt-work "same scene, add a bellhop at the desk"
+node genimg.mjs edit chatgpt-work photo.png "remove the people, keep the lighting"
+node genimg.mjs list
 ```
-Log into both chatgpt.com and gemini.google.com in the same login window; both sites share one profile per email.
 
-## Commands
-```
-node genimg.mjs gen  <profile> "<prompt>" [--out f] [--attach a.png,b.png]
-node genimg.mjs iter <profile> "<prompt>" [--out f] [--chat url] [--attach ...]   # follow-up in the last conversation
-node genimg.mjs edit <profile> <img[,img2]> "<prompt>" [--out f]                  # upload + edit, new chat
-node genimg.mjs save <profile> [--chat url] [--out f]                             # re-download the newest image
-node genimg.mjs list                                                              # profiles, usage, login state
-node probe.mjs <profile> <url>                                                    # debug: dump the image DOM
-```
-Known profiles: `chatgpt-simplotel`, `chatgpt-sid`, `gemini-simplotel`, `gemini-sid`.
+Full command list and failure table: `SKILL.md`. DOM gotchas for maintainers: `references/gotchas.md`.
 
-## Layout
-| Path | Role |
-|---|---|
-| `genimg.mjs` | Main CLI (login, gen, iter, edit, save, list) |
-| `probe.mjs` | DOM debug helper for a given profile/URL |
-| `accounts.json` | Profile directory to site mapping |
-| `sessions.json`, `usage.json` | Runtime state (last conversation, per-day usage) |
+## What never leaves your machine
 
-## Notes / gotchas
-- Headed real Chrome only; headless trips bot detection. Use human-ish pacing and avoid rapid open/close churn.
-- ChatGPT is primary, Gemini is fallback by owner policy. ChatGPT sessions survive password changes; Gemini on the Workspace account is logged out by every 14-day password rotation, and a run then fails loud with a `LOGGED OUT` error naming the re-login command.
-- Generations take 1 to 3 minutes; run commands in the foreground with a generous timeout.
-- A CLI `OK` is not a pass. Eyeball the output PNG.
-- Selector gotchas worth knowing before touching the scraping code: ChatGPT image URLs are signed and rotate per page load, so image identity is the `id=file_xxx` param, never the full URL. Generated images are scoped to the `[class*="imagegen-image"]` wrapper to avoid matching user uploads. Gemini serves images as rotating `blob:` URLs, so freshness is detected as a new `model-response` node and the image is grabbed via an in-page canvas draw, which also strips the visible watermark (invisible SynthID remains). Playwright's `fill()` silently no-ops on Gemini's rich-text composer, so text goes in via `keyboard.insertText`, then the composer is checked non-empty, then checked cleared after Enter, before waiting for the image.
+`accounts.json`, `profiles/` (browser cookies = live logins), `sessions.json`, `usage.json`, `out/`. All gitignored. Do not share a `profiles/` folder with anyone.
 
-## ToS note
-Automating these web UIs is against both providers' terms of service. Personal-scale use with human-ish pacing is the operating assumption, and an account ban is the risk ceiling.
+## Terms
+
+Automating these web UIs is against both providers' terms of service. Use your own account, at human pace, and accept that a ban is the worst case.
