@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const [, , profile, url] = process.argv;
 const ctx = await chromium.launchPersistentContext(path.join(ROOT, 'profiles', profile), {
-  executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe',
+  executablePath: process.env.WEBGEN_CHROME ?? 'C:/Program Files/Google/Chrome/Application/chrome.exe',
   headless: false, viewport: null,
   args: ['--disable-blink-features=AutomationControlled', '--no-first-run', '--no-default-browser-check'],
 });

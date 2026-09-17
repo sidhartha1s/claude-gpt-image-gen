@@ -1,0 +1,4 @@
+{
+  "chatgpt-work": { "site": "chatgpt", "account": "you@company.com", "dir": "work" },
+  "gemini-work":  { "site": "gemini",  "account": "you@company.com", "dir": "work" }
+}

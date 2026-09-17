@@ -1,44 +1,37 @@
-# webgen
+# webgen skill
 
-Image generation via **ChatGPT / Gemini web UIs** (subscription quota, not API) using persistent logged-in Chrome profiles driven by Playwright.
+Generate and edit images through the ChatGPT / Gemini **web UIs** using your own logged-in browser. No API keys, no per-image cost; it spends the account's subscription quota.
 
-## Setup
+## Install
 
-```bash
-npm install                      # playwright-core only
-node genimg.mjs login chatgpt-simplotel   # opens Chrome; log in, close window
-```
-
-One Chrome profile dir per email (`profiles/simplotel`, `profiles/sid`) holds cookies for BOTH sites — log into chatgpt.com and gemini.google.com in the same login window. Profile↔site mapping lives in `accounts.json` (`dir` field).
-
-## Commands
+Copy this folder to `~/.claude/skills/webgen/` (Claude Code picks it up on next start), then:
 
 ```bash
-node genimg.mjs gen  <profile> "<prompt>" [--out f] [--attach a.png,b.png]
-node genimg.mjs iter <profile> "<prompt>" [--out f] [--chat url] [--attach ...]   # follow-up in last conversation
-node genimg.mjs edit <profile> <img[,img2]> "<prompt>" [--out f]                  # upload + edit, new chat
-node genimg.mjs save <profile> [--chat url] [--out f]                             # re-download newest image
-node genimg.mjs list                                                              # profiles, usage, login state
-node probe.mjs <profile> <url>                                                    # debug: dump img DOM
+cd ~/.claude/skills/webgen/scripts
+npm install
+cp accounts.example.json accounts.json   # put your own email(s) in
+node genimg.mjs login chatgpt-work       # log in to chatgpt.com and gemini.google.com in the window that opens, then close it
 ```
 
-Profiles: `chatgpt-simplotel`, `chatgpt-sid`, `gemini-simplotel`, `gemini-sid`. Last conversation per profile is remembered in `sessions.json`; per-day usage counts in `usage.json`.
+Requires Node 18+ and Google Chrome at the default Windows path (override with `WEBGEN_CHROME=<path to chrome.exe>`).
 
-## Operating notes
+## Use
 
-- **Headed real Chrome only** — headless trips bot detection. Human-ish pacing; avoid rapid open/close churn.
-- ChatGPT primary, Gemini fallback (owner policy). ChatGPT sessions survive password changes; **Gemini on the Workspace account dies on every 14-day password rotation** — runs then fail loud with a `LOGGED OUT` error naming the re-login command.
-- Gens run 1–3 min; run commands in the foreground with a generous timeout.
-- **A CLI `OK` is not a pass — eyeball the output PNG.**
+Ask Claude for an image ("make me a hero image of ...", "edit this photo to ...", "iterate on the last one, warmer light"). The skill runs the CLI for you. Or call it directly:
 
-## Hard-won selector/DOM gotchas
+```bash
+node genimg.mjs gen  chatgpt-work "isometric illustration of a hotel lobby, soft daylight" --out lobby.png
+node genimg.mjs iter chatgpt-work "same scene, add a bellhop at the desk"
+node genimg.mjs edit chatgpt-work photo.png "remove the people, keep the lighting"
+node genimg.mjs list
+```
 
-- ChatGPT image URLs are signed (`&sig=` rotates per page load) → image identity = `id=file_xxx`, never the full URL.
-- User-uploaded attachments serve from the same `backend-api/estuary` endpoint as generated images → generated images are scoped to the `[class*="imagegen-image"]` wrapper.
-- Gemini serves images as `blob:` URLs (rotate on re-render, unfetchable cross-context) → freshness = a new `model-response` containing an image; download via in-page canvas draw. Canvas grab avoids Gemini's visible download watermark (invisible SynthID remains).
-- Playwright `fill()` silently no-ops on Quill/rich contenteditables (Gemini) → always type via `keyboard.insertText`, then verify the composer is non-empty, then verify it CLEARS after Enter (message actually posted) before waiting for the image.
-- Existing conversations lazy-render → wait for DOM stability before taking the freshness baseline.
+Full command list and failure table: `SKILL.md`. DOM gotchas for maintainers: `references/gotchas.md`.
 
-## ToS note
+## What never leaves your machine
 
-Automating these web UIs is against both providers' terms; personal-scale use with human-ish pacing is the operating assumption. Account bans are the risk ceiling.
+`accounts.json`, `profiles/` (browser cookies = live logins), `sessions.json`, `usage.json`, `out/`. All gitignored. Do not share a `profiles/` folder with anyone.
+
+## Terms
+
+Automating these web UIs is against both providers' terms of service. Use your own account, at human pace, and accept that a ban is the worst case.
