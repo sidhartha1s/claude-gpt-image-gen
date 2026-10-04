@@ -5,7 +5,7 @@ Each of these cost real hours. They explain why the code is shaped the way it is
 ## ChatGPT
 
 - **Image URLs are signed.** `&sig=` rotates on every page load, so two loads of the same image have different `src`. Image identity is the `id=file_xxx` query param (`imgKey()`), never the full URL. Comparing full URLs makes every image look "new".
-- **Uploads and results share an endpoint.** User-attached images serve from the same `backend-api/estuary` path as generated ones. Generated images are therefore scoped to the `[class*="imagegen-image"]` wrapper; without that scope the freshness check grabs your own upload as the result.
+- **Uploads and results share an endpoint.** User-attached images serve from the same `backend-api/estuary` path as generated ones. Generated images are therefore scoped to the `[class*="imagegen-image"]` wrapper; without that scope the freshness check grabs your own upload as the result. Since 2026-10-04 ChatGPT renders results as `blob:` images under a `generated-image` wrapper with no `<article>`, and the composer is a bare ProseMirror div; the ChatGPT entry matches both DOMs, treats each wrapper as one response, and saves through the canvas path. A refusal is no longer read as text, so it ends in the generation timeout.
 - **Enter is a no-op while an upload is processing.** Attach, wait for the thumbnail to settle, then send. The script verifies the composer is non-empty before Enter and empty after it (message actually posted) before it starts waiting for an image.
 - **Never close the context right after send.** Generation aborts or never lands. Wait for a new `file_` id that is stable across two consecutive polls.
 
