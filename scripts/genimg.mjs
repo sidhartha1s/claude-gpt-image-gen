@@ -69,10 +69,6 @@ async function withPage(profile, fn) {
   }
 }
 
-// Stable identity for a generated image. ChatGPT signs URLs (&sig= changes every page load),
-// so identity is the file id (id=file_xxx), NOT the full URL. Fallback: full src.
-const imgKey = (src) => src.match(/[?&]id=(file_[A-Za-z0-9]+)/)?.[1] ?? src;
-
 const ERROR_PHRASES = ["wasn't able to", 'unable to', "can't create", 'error on my side', 'something went wrong'];
 
 const SITES = {
@@ -85,7 +81,6 @@ const SITES = {
     // each wrapper counts as one response (refusal text no longer detected: a refusal ends in the timeout)
     imgSel: '[class*="generated-image"] img, [class*="imagegen-image"] img[src*="backend-api/estuary/content"], [class*="imagegen-image"] img[src*="oaiusercontent"]',
     respSel: '[class*="generated-image"], [class*="imagegen-image"]',
-    unstableSrc: true,
     // composer moved from #prompt-textarea to a bare ProseMirror div (seen 2026-10-04); match both
     boxSel: '#prompt-textarea, div.ProseMirror[contenteditable="true"]',
     box: (page) => page.locator('#prompt-textarea, div.ProseMirror[contenteditable="true"]').first(),
@@ -98,7 +93,6 @@ const SITES = {
     imgSel: 'model-response img[src*="googleusercontent"], generated-image img',
     respSel: 'model-response',
     boxSel: 'rich-textarea .ql-editor',
-    unstableSrc: true, // blob: srcs rotate on re-render — freshness = new response containing an image
     box: (page) => page.locator('rich-textarea .ql-editor, div[contenteditable="true"]').first(),
     sendReady: (page) => page.locator('button[aria-label*="Send"]:not([aria-disabled="true"])'),
     chatUrl: (page) => /\/app\/\w/.test(page.url()) ? page.url() : null,
@@ -116,7 +110,6 @@ async function snapshot(page, site) {
     return { srcs, errCount, imgResponses: withImg.length, lastRespImg: withImg.at(-1)?.querySelector(imgSel)?.src ?? null };
   }, { imgSel: site.imgSel, respSel: site.respSel, phrases: ERROR_PHRASES });
 }
-const keyMap = (srcs) => new Map(srcs.map((s) => [imgKey(s), s]));
 
 // Attach (waiting for upload to make the send button ready), fill, send —
 // then VERIFY the message actually posted (composer cleared) before returning.
@@ -153,18 +146,15 @@ async function sendMessage(page, site, text, attachFiles) {
   throw new Error('Message did not send within 60s (composer never cleared).');
 }
 
-// Waits for an image with a NEW key (vs baseline) or a generation-error message.
+// Waits for a NEW response containing an image (vs baseline) or a generation-error message.
 // Returns after the fresh src is stable across two consecutive reads.
 async function waitForResult(page, site, base) {
   const deadline = Date.now() + GEN_TIMEOUT_MS;
-  const baselineKeys = new Set(keyMap(base.srcs).keys());
   let seenFresh = false;
   while (Date.now() < deadline) {
     const snap = await snapshot(page, site);
-    // unstableSrc sites (blob rotation): fresh = a NEW response containing an image; else: new stable key
-    const freshSrc = site.unstableSrc
-      ? (snap.imgResponses > base.imgResponses ? snap.lastRespImg : null)
-      : ([...keyMap(snap.srcs).entries()].filter(([k]) => !baselineKeys.has(k)).at(-1)?.[1] ?? null);
+    // both sites serve blob: srcs that rotate on re-render: fresh = a NEW response containing an image
+    const freshSrc = snap.imgResponses > base.imgResponses ? snap.lastRespImg : null;
     if (freshSrc) {
       if (seenFresh) return { src: freshSrc }; // present across two ticks
       seenFresh = true;
@@ -197,9 +187,9 @@ async function saveImage(ctx, page, site, src, outFile) {
   }
 }
 
-// One generate-or-edit operation on an already-open page. Attachments are sent only on the
-// first attempt by design: after a verified post they live in the conversation, so a retry
-// ("try again") sees them without re-uploading.
+// One generate-or-edit operation on an already-open page. A retry re-sends the original prompt
+// WITH its attachments: ChatGPT can drop posted attachments (2026-10-04), and a bare "try again"
+// then invents an unrelated image that the freshness check accepts as the result.
 async function generateOnPage(page, ctx, profile, { text, chatUrl = null, attachFiles = null, outFile }) {
   const site = SITES[ACCOUNTS[profile].site];
   await page.goto(chatUrl ?? site.url, { waitUntil: 'domcontentloaded' });
@@ -217,10 +207,10 @@ async function generateOnPage(page, ctx, profile, { text, chatUrl = null, attach
     }
   }
 
-  let attempt = 0, prompt = text;
+  let attempt = 0;
   while (true) {
     const base = await snapshot(page, site);
-    await sendMessage(page, site, prompt, attempt === 0 ? attachFiles : null);
+    await sendMessage(page, site, text, attachFiles);
     const res = await waitForResult(page, site, base);
     if (res.src) {
       await saveImage(ctx, page, site, res.src, outFile);
@@ -232,7 +222,6 @@ async function generateOnPage(page, ctx, profile, { text, chatUrl = null, attach
     }
     if (attempt++ >= MAX_RETRIES) throw new Error(`Generation failed after ${attempt} attempt(s): ${res.error}`);
     console.error(`[retry] ${res.error}`);
-    prompt = 'Please try generating that image again.';
   }
 }
 
