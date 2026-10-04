@@ -81,10 +81,14 @@ const SITES = {
     loggedOut: (page) => /auth\.openai\.com|\/auth|log-?in/i.test(page.url()),
     // imagegen-image wrapper marks GENERATED images; user-uploaded attachments also serve from
     // backend-api/estuary and must not count (they lack this wrapper)
-    imgSel: '[class*="imagegen-image"] img[src*="backend-api/estuary/content"], [class*="imagegen-image"] img[src*="oaiusercontent"]',
-    respSel: 'article',
-    boxSel: '#prompt-textarea',
-    box: (page) => page.locator('#prompt-textarea'),
+    // 2026-10-04: results render as blob: <img> under a generated-image wrapper and <article> is gone;
+    // each wrapper counts as one response (refusal text no longer detected: a refusal ends in the timeout)
+    imgSel: '[class*="generated-image"] img, [class*="imagegen-image"] img[src*="backend-api/estuary/content"], [class*="imagegen-image"] img[src*="oaiusercontent"]',
+    respSel: '[class*="generated-image"], [class*="imagegen-image"]',
+    unstableSrc: true,
+    // composer moved from #prompt-textarea to a bare ProseMirror div (seen 2026-10-04); match both
+    boxSel: '#prompt-textarea, div.ProseMirror[contenteditable="true"]',
+    box: (page) => page.locator('#prompt-textarea, div.ProseMirror[contenteditable="true"]').first(),
     sendReady: (page) => page.locator('button[data-testid="send-button"]:not([disabled]):not([aria-disabled="true"])'),
     chatUrl: (page) => /\/c\//.test(page.url()) ? page.url() : null,
   },
