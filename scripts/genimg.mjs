@@ -9,6 +9,10 @@
 //                                                            upload image(s) + edit instruction (new chat)
 //   node genimg.mjs save <profile> [--chat url] [--out f]    download newest image from last/given conversation
 //   gen/iter also take --attach a.png[,b.png]                attach reference image(s) with the prompt
+//   node genimg.mjs batch <profile> jobs.json                several images in ONE window: jobs.json is
+//                                                            [{"prompt", "attach": [files], "out"}], new chat each,
+//                                                            human-paced; use it instead of looping gen (one launch
+//                                                            per image reads as a bot)
 import { chromium } from 'playwright-core';
 import fs from 'node:fs';
 import path from 'node:path';
