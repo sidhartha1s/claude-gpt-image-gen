@@ -264,11 +264,11 @@ try {
   } else if (cmd === 'batch') {
     const jobs = positionals[0] ? readJson(positionals[0], null) : null;
     if (!Array.isArray(jobs)) throw new Error('Usage: batch <profile> <jobs.json>  ([{"prompt","attach":[...],"out"}])');
-    const prepared = jobs.map((j) => ({  // validate every job before the browser opens
-      text: `Create an image: ${j.prompt}`,
-      attachFiles: j.attach?.length ? parseFileList(j.attach.join(',')) : null,
-      outFile: outFileFor(profile).replace(/[^/\\]+$/, '') && path.resolve(j.out),
-    }));
+    const prepared = jobs.map((j) => {  // validate every job before the browser opens
+      if (!j.prompt || !j.out) throw new Error(`batch job needs prompt and out: ${JSON.stringify(j).slice(0, 120)}`);
+      fs.mkdirSync(path.dirname(path.resolve(j.out)), { recursive: true });
+      return { text: `Create an image: ${j.prompt}`, attachFiles: j.attach?.length ? parseFileList(j.attach.join(',')) : null, outFile: j.out };
+    });
     await withPage(profile, async (page, ctx) => {
       for (const [i, job] of prepared.entries()) {
         if (i) await page.waitForTimeout(20_000 + Math.random() * 25_000); // a person reads the result before the next ask
