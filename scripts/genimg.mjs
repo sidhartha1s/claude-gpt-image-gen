@@ -261,6 +261,20 @@ try {
   } else if (cmd === 'gen') {
     if (!positionals[0]) throw new Error('Missing prompt.');
     await run(profile, { text: `Create an image: ${positionals[0]}`, attachFiles: attachList(), outFile: outFileFor(profile) });
+  } else if (cmd === 'batch') {
+    const jobs = positionals[0] ? readJson(positionals[0], null) : null;
+    if (!Array.isArray(jobs)) throw new Error('Usage: batch <profile> <jobs.json>  ([{"prompt","attach":[...],"out"}])');
+    const prepared = jobs.map((j) => ({  // validate every job before the browser opens
+      text: `Create an image: ${j.prompt}`,
+      attachFiles: j.attach?.length ? parseFileList(j.attach.join(',')) : null,
+      outFile: outFileFor(profile).replace(/[^/\\]+$/, '') && path.resolve(j.out),
+    }));
+    await withPage(profile, async (page, ctx) => {
+      for (const [i, job] of prepared.entries()) {
+        if (i) await page.waitForTimeout(20_000 + Math.random() * 25_000); // a person reads the result before the next ask
+        await generateOnPage(page, ctx, profile, job);
+      }
+    });
   } else if (cmd === 'iter') {
     if (!positionals[0]) throw new Error('Missing prompt.');
     const chat = lastChatFor(profile);
