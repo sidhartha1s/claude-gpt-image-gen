@@ -75,7 +75,7 @@ async function withPage(profile, fn) {
   try {
     return await fn(page, ctx);
   } finally {
-    await page.close().catch(() => {});
+    if (!page.isClosed()) await page.close(); // login ends when the user closes the tab themselves
     await browser.close(); // attached over CDP: this drops our connection, Chrome keeps running
   }
 }
