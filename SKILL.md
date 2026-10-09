@@ -33,7 +33,7 @@ node genimg.mjs iter <profile> "<prompt>" [--out f.png] [--chat url] [--attach .
 node genimg.mjs edit <profile> <img[,img2]> "<prompt>" [--out f.png]              # upload + edit instruction, new chat
 node genimg.mjs save <profile> [--chat url] [--out f.png]                        # re-download the newest image
 node genimg.mjs list                                                             # profiles, today's usage, login state
-node probe.mjs <profile> <url>                                                   # debug: dump the image DOM of a chat
+node genimg.mjs probe <profile> [url]                                              # debug: dump the image DOM of a chat
 ```
 
 `--out` defaults to `out/<timestamp>.png`. The last conversation per profile is remembered in `sessions.json`, so `iter` without `--chat` continues where `gen` left off.

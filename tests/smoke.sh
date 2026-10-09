@@ -8,9 +8,8 @@ cp "$root"/scripts/*.mjs "$root"/scripts/package.json "$root"/scripts/accounts.e
 ln -s "$root/scripts/node_modules" "$tmp/node_modules" 2>/dev/null || cp -r "$root/scripts/node_modules" "$tmp/node_modules"
 cd "$tmp"
 node --check genimg.mjs
-node --check probe.mjs
 # the browser must be attached to and left running, never launched and closed per call
-if grep -q 'launchPersistentContext' genimg.mjs; then echo 'genimg.mjs launches its own browser per call'; exit 1; fi
+if grep -n -E 'launchPersistentContext|chromium\.launch\(' *.mjs; then echo 'a script launches its own browser per call'; exit 1; fi
 grep -q 'connectOverCDP' genimg.mjs
 cp accounts.example.json accounts.json
 out=$(node genimg.mjs list)

@@ -10,6 +10,7 @@
 //                                                            upload image(s) + edit instruction (new chat)
 //   node genimg.mjs save <profile> [--chat url] [--out f]    download newest image from last/given conversation
 //   gen/iter also take --attach a.png[,b.png]                attach reference image(s) with the prompt
+//   node genimg.mjs probe <profile> [url]                    debug: dump the image DOM of a chat
 import { chromium } from 'playwright-core';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -62,13 +63,13 @@ async function withPage(profile, fn) {
   const dir = path.join(ROOT, 'profiles', dirOf(profile));
   fs.mkdirSync(dir, { recursive: true });
   const port = CDP_BASE_PORT + [...new Set(Object.keys(ACCOUNTS).map(dirOf))].indexOf(dirOf(profile));
-  const attach = () => chromium.connectOverCDP(`http://127.0.0.1:${port}`, { timeout: 3000 }).catch(() => null);
+  const attach = () => chromium.connectOverCDP(`http://127.0.0.1:${port}`, { timeout: 30_000 }).catch(() => null); // a closed port refuses at once
   let browser = await attach();
   if (!browser) {
     spawn(CHROME, [`--user-data-dir=${dir}`, `--remote-debugging-port=${port}`, '--disable-blink-features=AutomationControlled',
       '--no-first-run', '--no-default-browser-check'], { detached: true, stdio: 'ignore' }).unref();
     for (let i = 0; i < 20 && !browser; i++) { await new Promise((r) => setTimeout(r, 1000)); browser = await attach(); }
-    if (!browser) throw new Error(`Chrome for profile dir "${dirOf(profile)}" did not answer on port ${port}`);
+    if (!browser) throw new Error(`Chrome for profile dir "${dirOf(profile)}" did not answer on port ${port}. Either a Chrome is already open on that profile without the debug port (close that window once, then rerun), or another program holds the port.`);
   }
   const ctx = browser.contexts()[0];
   const page = await ctx.newPage();
@@ -293,8 +294,23 @@ try {
       rememberChat(profile, chat);
       console.log(`OK ${outFile}`);
     });
+  } else if (cmd === 'probe') {
+    await withPage(profile, async (page) => {
+      await page.goto(positionals[0] ?? SITES[ACCOUNTS[profile].site].url, { waitUntil: 'domcontentloaded' });
+      await page.waitForTimeout(8000);
+      console.log('URL:', page.url());
+      const imgs = await page.evaluate(() =>
+        [...document.querySelectorAll('img')].map((i) => ({
+          src: i.src.slice(0, 140),
+          alt: i.alt,
+          w: i.naturalWidth, h: i.naturalHeight,
+          chain: (() => { let n = i, c = []; for (let k = 0; k < 5 && n.parentElement; k++) { n = n.parentElement; c.push(n.tagName.toLowerCase() + (n.className && typeof n.className === 'string' ? '.' + n.className.split(' ').slice(0, 2).join('.') : '')); } return c.join(' < '); })(),
+        }))
+      );
+      console.log(JSON.stringify(imgs, null, 1));
+    });
   } else {
-    console.log('Usage: genimg.mjs login|gen|iter|edit|save|list  (see file header)');
+    console.log('Usage: genimg.mjs login|gen|iter|edit|save|probe|list  (see file header)');
     process.exit(cmd ? 1 : 0);
   }
 } catch (e) {
