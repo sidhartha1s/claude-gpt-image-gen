@@ -288,7 +288,7 @@ try {
       console.log(`Log in as ${ACCOUNTS[profile].account}, then close that tab (the browser can stay open).`);
       await new Promise((res) => tab.on('close', res));
       console.log('Profile saved.');
-    }).catch((e) => { if (!/closed/i.test(e.message)) throw e; }); // user closing the tab or window is success
+    }).catch((e) => { if (!/Target page, context or browser has been closed/.test(e.message)) throw e; }); // user closing the tab or window is success; a dropped network connection is not
   } else if (cmd === 'gen') {
     if (!positionals[0]) throw new Error('Missing prompt.');
     await run(profile, { text: `Create an image: ${positionals[0]}`, attachFiles: attachList(), outFile: outFileFor(profile) });
