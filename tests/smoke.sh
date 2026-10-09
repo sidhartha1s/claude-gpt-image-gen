@@ -27,6 +27,8 @@ mkdir -p profiles
 node -e "require('fs').writeFileSync('profiles/work.lock', String(process.pid)); setTimeout(() => {}, 20000)" &
 holder=$!
 for _ in 1 2 3 4 5 6 7 8 9 10; do [ -s profiles/work.lock ] && break; sleep 0.5; done
+# without the lock the call below would attach to a live Chrome on the same port and send a real prompt: stop here instead
+[ -s profiles/work.lock ] || { kill "$holder" 2>/dev/null; echo 'lock holder did not start'; exit 1; }
 if WEBGEN_CHROME=/nonexistent node genimg.mjs gen chatgpt-work "x" 2>err.txt; then kill "$holder"; echo "expected failure for a busy profile dir"; exit 1; fi
 kill "$holder" 2>/dev/null || true
 grep -q 'Another genimg call is using profile dir "work"' err.txt
