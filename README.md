@@ -10,7 +10,7 @@ Share the packaged `webgen.skill` archive (or a copy of the working tree without
 cd ~/.claude/skills/webgen/scripts
 npm install
 cp accounts.example.json accounts.json   # put your own email(s) in
-node genimg.mjs login chatgpt-work       # log in to chatgpt.com and gemini.google.com in the window that opens, then close it
+node genimg.mjs login chatgpt-work       # log in to chatgpt.com and gemini.google.com in the window that opens, then close that tab
 ```
 
 Requires Node 18+ and Google Chrome at the default Windows path (override with `WEBGEN_CHROME=<path to chrome.exe>`).

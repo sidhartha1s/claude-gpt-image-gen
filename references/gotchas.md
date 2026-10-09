@@ -19,5 +19,5 @@ Each of these cost real hours. They explain why the code is shaped the way it is
 ## Both
 
 - **Existing conversations lazy-render.** Baseline image counts taken before the DOM settles are meaningless; wait for stability before snapshotting the baseline, otherwise an old image is reported as new.
-- **Headless = bot detection.** Real headed Chrome with a persistent profile passes; keep pacing human-ish and avoid rapid open/close churn.
+- **Headless = bot detection.** Real headed Chrome with a persistent profile passes; keep pacing human-ish. `genimg.mjs` keeps one Chrome per profile open and reuses it, so calls cannot churn windows.
 - **A CLI `OK` is not verification.** The tool has said OK twice while saving the wrong image. Always open the output PNG.
