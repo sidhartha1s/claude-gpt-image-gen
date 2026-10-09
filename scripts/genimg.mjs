@@ -259,10 +259,10 @@ try {
   } else if (cmd === 'login') {
     await withPage(profile, async (page, ctx) => {
       await page.goto(SITES[ACCOUNTS[profile].site].url);
-      console.log(`Log in as ${ACCOUNTS[profile].account}, then close the browser window.`);
-      await new Promise((res) => ctx.on('close', res));
+      console.log(`Log in as ${ACCOUNTS[profile].account}, then close that tab (the browser can stay open).`);
+      await new Promise((res) => page.on('close', res));
       console.log('Profile saved.');
-    }).catch((e) => { if (!/closed/i.test(e.message)) throw e; }); // user closing the window is success
+    }).catch((e) => { if (!/closed/i.test(e.message)) throw e; }); // user closing the tab or window is success
   } else if (cmd === 'gen') {
     if (!positionals[0]) throw new Error('Missing prompt.');
     await run(profile, { text: `Create an image: ${positionals[0]}`, attachFiles: attachList(), outFile: outFileFor(profile) });
