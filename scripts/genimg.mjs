@@ -55,8 +55,9 @@ function parseFileList(raw) {
 }
 
 // One long-lived Chrome per profile dir. A call attaches to it when it is already running, starts it once when it is
-// not, works in its own tab, and closes only that tab: the browser is never closed from here. Opening and closing a
-// window per call looks like a bot to the site and to the person at the screen, so no caller can do it.
+// not, and works in the tab that is already open by changing its address, the way a person does. Nothing here closes
+// the tab or the browser. Opening and closing a window or a tab per call looks like a bot to the site and to the
+// person at the screen (owner, 9 Oct 26), so no caller can do it.
 async function withPage(profile, fn) {
   if (!ACCOUNTS[profile]) throw new Error(`Unknown profile "${profile}". Known: ${Object.keys(ACCOUNTS).join(', ')}`);
   const dirOf = (name) => ACCOUNTS[name].dir ?? name;
