@@ -41,7 +41,7 @@ node genimg.mjs probe <profile> [url]                                           
 ## How to run it well
 
 - **Foreground, generous timeout.** A generation takes 1-3 minutes; the script already waits up to 3 min and retries once. Do not background it and poll.
-- **The browser stays open between calls.** The first call for a profile starts Chrome once; every later call attaches to that same window, works in its own tab and closes only the tab. Never close that Chrome from a script: opening and closing a window per step looks like a bot.
+- **The browser stays open between calls.** The first call for a profile starts Chrome once; every later call attaches to that same window and works in the tab that is already open, by changing its address. Nothing closes the tab or the browser (only `login` opens a tab, which the user closes). Never close that Chrome from a script: opening and closing a window or a tab per step looks like a bot.
 - **Headed Chrome only.** Headless trips bot detection on both sites.
 - **ChatGPT first, Gemini as fallback.** Gemini output carries a visible watermark via its own download button (the canvas grab in this script avoids it; the invisible SynthID remains).
 - **"OK" is not a pass.** The CLI has reported success while delivering the wrong image (an uploaded reference instead of the result). Open the PNG and check it before handing it over.
