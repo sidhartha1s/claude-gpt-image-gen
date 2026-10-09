@@ -50,22 +50,30 @@ function parseFileList(raw) {
   return files;
 }
 
-// Owns the browser lifecycle once; all operations compose inside fn on a single open page.
+// One long-lived Chrome per profile dir. A call attaches to it when it is already running, starts it once when it is
+// not, works in its own tab, and closes only that tab: the browser is never closed from here. Opening and closing a
+// window per call looks like a bot to the site and to the person at the screen, so no caller can do it.
 async function withPage(profile, fn) {
   if (!ACCOUNTS[profile]) throw new Error(`Unknown profile "${profile}". Known: ${Object.keys(ACCOUNTS).join(', ')}`);
-  const dir = path.join(ROOT, 'profiles', ACCOUNTS[profile].dir ?? profile);
+  const dirOf = (name) => ACCOUNTS[name].dir ?? name;
+  const dir = path.join(ROOT, 'profiles', dirOf(profile));
   fs.mkdirSync(dir, { recursive: true });
-  const ctx = await chromium.launchPersistentContext(dir, {
-    executablePath: CHROME,
-    headless: false,
-    viewport: null,
-    args: ['--disable-blink-features=AutomationControlled', '--no-first-run', '--no-default-browser-check'],
-  });
+  const port = CDP_BASE_PORT + [...new Set(Object.keys(ACCOUNTS).map(dirOf))].indexOf(dirOf(profile));
+  const attach = () => chromium.connectOverCDP(`http://127.0.0.1:${port}`, { timeout: 3000 }).catch(() => null);
+  let browser = await attach();
+  if (!browser) {
+    spawn(CHROME, [`--user-data-dir=${dir}`, `--remote-debugging-port=${port}`, '--disable-blink-features=AutomationControlled',
+      '--no-first-run', '--no-default-browser-check'], { detached: true, stdio: 'ignore' }).unref();
+    for (let i = 0; i < 20 && !browser; i++) { await new Promise((r) => setTimeout(r, 1000)); browser = await attach(); }
+    if (!browser) throw new Error(`Chrome for profile dir "${dirOf(profile)}" did not answer on port ${port}`);
+  }
+  const ctx = browser.contexts()[0];
+  const page = await ctx.newPage();
   try {
-    const page = ctx.pages()[0] ?? await ctx.newPage();
     return await fn(page, ctx);
   } finally {
-    await ctx.close();
+    await page.close().catch(() => {});
+    await browser.close(); // attached over CDP: this drops our connection, Chrome keeps running
   }
 }
 
