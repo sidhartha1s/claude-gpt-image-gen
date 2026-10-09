@@ -10,6 +10,7 @@
 //   node genimg.mjs save <profile> [--chat url] [--out f]    download newest image from last/given conversation
 //   gen/iter also take --attach a.png[,b.png]                attach reference image(s) with the prompt
 import { chromium } from 'playwright-core';
+import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
