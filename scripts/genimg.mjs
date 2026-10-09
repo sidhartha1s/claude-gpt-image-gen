@@ -63,22 +63,44 @@ async function withPage(profile, fn) {
   const dirOf = (name) => ACCOUNTS[name].dir ?? name;
   const dir = path.join(ROOT, 'profiles', dirOf(profile));
   fs.mkdirSync(dir, { recursive: true });
-  const port = CDP_BASE_PORT + [...new Set(Object.keys(ACCOUNTS).map(dirOf))].indexOf(dirOf(profile));
-  const attach = () => chromium.connectOverCDP(`http://127.0.0.1:${port}`, { timeout: 30_000 }).catch(() => null); // a closed port refuses at once
-  let browser = await attach();
-  if (!browser) {
-    spawn(CHROME, [`--user-data-dir=${dir}`, `--remote-debugging-port=${port}`, '--disable-blink-features=AutomationControlled',
-      '--no-first-run', '--no-default-browser-check'], { detached: true, stdio: 'ignore' }).unref();
-    for (let i = 0; i < 20 && !browser; i++) { await new Promise((r) => setTimeout(r, 1000)); browser = await attach(); }
-    if (!browser) throw new Error(`Chrome for profile dir "${dirOf(profile)}" did not answer on port ${port}. Either a Chrome is already open on that profile without the debug port (close that window once, then rerun), or another program holds the port.`);
-  }
-  const ctx = browser.contexts()[0];
-  const page = ctx.pages().find((p) => !p.isClosed()) ?? await ctx.newPage(); // a new tab only when none is open
+  const unlock = lockDir(dir);
   try {
-    return await fn(page, ctx);
+    const port = CDP_BASE_PORT + [...new Set(Object.keys(ACCOUNTS).map(dirOf))].indexOf(dirOf(profile));
+    const attach = () => chromium.connectOverCDP(`http://127.0.0.1:${port}`, { timeout: 30_000 }).catch(() => null); // a closed port refuses at once
+    let browser = await attach();
+    if (!browser) {
+      spawn(CHROME, [`--user-data-dir=${dir}`, `--remote-debugging-port=${port}`, '--disable-blink-features=AutomationControlled',
+        '--no-first-run', '--no-default-browser-check'], { detached: true, stdio: 'ignore' }).unref();
+      const deadline = Date.now() + 20_000; // one bound on the whole wait, however slowly a port answers
+      while (!browser && Date.now() < deadline) { await new Promise((r) => setTimeout(r, 1000)); browser = await attach(); }
+      if (!browser) throw new Error(`Chrome for profile dir "${dirOf(profile)}" did not answer on port ${port}. Either a Chrome is already open on that profile without the debug port (close that window once, then rerun), or another program holds the port.`);
+    }
+    const ctx = browser.contexts()[0];
+    const page = ctx.pages().find((p) => !p.isClosed()) ?? await ctx.newPage(); // a new tab only when none is open
+    try {
+      return await fn(page, ctx);
+    } finally {
+      await browser.close(); // attached over CDP: this drops our connection, Chrome and its tab keep running
+    }
   } finally {
-    await browser.close(); // attached over CDP: this drops our connection, Chrome and its tab keep running
+    unlock();
   }
+}
+
+// One call per profile dir at a time. Calls share the one open tab, so a second call would navigate the first call's
+// page away and the first would then save the second's image. A busy dir fails loud; a lock left by a killed call
+// (its process is gone) is taken over.
+function lockDir(dir) {
+  const file = `${dir}.lock`;
+  const alive = (pid) => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } };
+  if (fs.existsSync(file) && !alive(Number(fs.readFileSync(file, 'utf8')))) fs.rmSync(file);
+  try {
+    fs.writeFileSync(file, String(process.pid), { flag: 'wx' });
+  } catch (e) {
+    if (e.code !== 'EEXIST') throw e;
+    throw new Error(`Another genimg call is using profile dir "${path.basename(dir)}" (its one tab is busy). Wait for it to finish, then rerun.`);
+  }
+  return () => fs.rmSync(file, { force: true });
 }
 
 const ERROR_PHRASES = ["wasn't able to", 'unable to', "can't create", 'error on my side', 'something went wrong'];
