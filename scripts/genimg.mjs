@@ -73,12 +73,11 @@ async function withPage(profile, fn) {
     if (!browser) throw new Error(`Chrome for profile dir "${dirOf(profile)}" did not answer on port ${port}. Either a Chrome is already open on that profile without the debug port (close that window once, then rerun), or another program holds the port.`);
   }
   const ctx = browser.contexts()[0];
-  const page = await ctx.newPage();
+  const page = ctx.pages().find((p) => !p.isClosed()) ?? await ctx.newPage(); // a new tab only when none is open
   try {
     return await fn(page, ctx);
   } finally {
-    if (!page.isClosed()) await page.close(); // login ends when the user closes the tab themselves
-    await browser.close(); // attached over CDP: this drops our connection, Chrome keeps running
+    await browser.close(); // attached over CDP: this drops our connection, Chrome and its tab keep running
   }
 }
 
