@@ -11,6 +11,9 @@ node --check genimg.mjs
 # the browser must be attached to and left running, never launched and closed per call
 if grep -n -E 'launchPersistentContext|chromium\.launch\(' *.mjs; then echo 'a script launches its own browser per call'; exit 1; fi
 grep -q 'connectOverCDP' genimg.mjs
+# a call reuses the open tab: no script closes a tab, and only login opens one
+if grep -n -E 'page\.close\(' *.mjs; then echo 'a script closes its tab per call'; exit 1; fi
+[ "$(grep -c 'newPage()' genimg.mjs)" = 2 ] || { echo 'expected exactly two newPage() sites: the no-tab fallback and login'; exit 1; }
 cp accounts.example.json accounts.json
 out=$(node genimg.mjs list)
 echo "$out"
