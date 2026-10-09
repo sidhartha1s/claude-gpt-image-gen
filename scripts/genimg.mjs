@@ -260,10 +260,11 @@ try {
       console.log(`${name.padEnd(20)} ${a.site.padEnd(8)} ${a.account.padEnd(28)} login:${logged ? 'yes' : 'NO '} today:${u[name]?.[day] ?? 0}${s[name] ? '  last-chat:yes' : ''}`);
     }
   } else if (cmd === 'login') {
-    await withPage(profile, async (page, ctx) => {
-      await page.goto(SITES[ACCOUNTS[profile].site].url);
+    await withPage(profile, async (_page, ctx) => {
+      const tab = await ctx.newPage(); // the one tab this tool opens: the user closing it is the "done" signal
+      await tab.goto(SITES[ACCOUNTS[profile].site].url);
       console.log(`Log in as ${ACCOUNTS[profile].account}, then close that tab (the browser can stay open).`);
-      await new Promise((res) => page.on('close', res));
+      await new Promise((res) => tab.on('close', res));
       console.log('Profile saved.');
     }).catch((e) => { if (!/closed/i.test(e.message)) throw e; }); // user closing the tab or window is success
   } else if (cmd === 'gen') {
