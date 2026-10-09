@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // genimg — image generation via ChatGPT / Gemini web UIs using persistent logged-in Chrome profiles.
+// The browser is long-lived: the first call for a profile starts Chrome, later calls reuse it, none closes it.
 // Usage:
 //   node genimg.mjs login <profile>                          one-time manual login
 //   node genimg.mjs gen  <profile> "<prompt>" [--out f]      new chat, generate image

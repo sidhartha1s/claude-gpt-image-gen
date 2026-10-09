@@ -18,7 +18,7 @@ cd <this-skill>/scripts
 ```bash
 npm install                                   # playwright-core only
 cp accounts.example.json accounts.json        # then edit: your email + profile names
-node genimg.mjs login chatgpt-work            # opens Chrome; log in to chatgpt.com AND gemini.google.com, then close the window
+node genimg.mjs login chatgpt-work            # opens Chrome; log in to chatgpt.com AND gemini.google.com, then close that tab
 ```
 
 `accounts.json` maps a profile name to `{site, account, dir}`. One `profiles/<dir>` per email holds cookies for both sites, so log in to both in the same window. Chrome path defaults to the standard Windows install; set `WEBGEN_CHROME` if it lives elsewhere.
@@ -41,7 +41,7 @@ node probe.mjs <profile> <url>                                                  
 ## How to run it well
 
 - **Foreground, generous timeout.** A generation takes 1-3 minutes; the script already waits up to 3 min and retries once. Do not background it and poll.
-- **Batch a multi-step flow into one session** (gen, then iter, then iter) rather than opening and closing Chrome per step. Rapid open/close churn looks like a bot.
+- **The browser stays open between calls.** The first call for a profile starts Chrome once; every later call attaches to that same window, works in its own tab and closes only the tab. Never close that Chrome from a script: opening and closing a window per step looks like a bot.
 - **Headed Chrome only.** Headless trips bot detection on both sites.
 - **ChatGPT first, Gemini as fallback.** Gemini output carries a visible watermark via its own download button (the canvas grab in this script avoids it; the invisible SynthID remains).
 - **"OK" is not a pass.** The CLI has reported success while delivering the wrong image (an uploaded reference instead of the result). Open the PNG and check it before handing it over.
