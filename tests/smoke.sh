@@ -22,6 +22,14 @@ grep -q '^gemini-work .*login:NO' <<<"$out"
 # unknown profile must fail loud before any browser launch
 if node genimg.mjs gen nope "x" 2>err.txt; then echo "expected failure for unknown profile"; exit 1; fi
 grep -q 'Unknown profile "nope"' err.txt
+# calls on one profile dir share one tab, so a second call on a busy dir must fail loud before it touches a browser
+mkdir -p profiles
+node -e "require('fs').writeFileSync('profiles/work.lock', String(process.pid)); setTimeout(() => {}, 20000)" &
+holder=$!
+for _ in 1 2 3 4 5 6 7 8 9 10; do [ -s profiles/work.lock ] && break; sleep 0.5; done
+if WEBGEN_CHROME=/nonexistent node genimg.mjs gen chatgpt-work "x" 2>err.txt; then kill "$holder"; echo "expected failure for a busy profile dir"; exit 1; fi
+kill "$holder" 2>/dev/null || true
+grep -q 'Another genimg call is using profile dir "work"' err.txt
 head -1 "$root/SKILL.md" | grep -q '^---$'
 grep -q '^name: webgen$' "$root/SKILL.md"
 echo "smoke: ok"
