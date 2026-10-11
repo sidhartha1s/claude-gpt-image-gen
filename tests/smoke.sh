@@ -11,6 +11,8 @@ node --check genimg.mjs
 # the browser must be attached to and left running, never launched and closed per call
 if grep -n -E 'launchPersistentContext|chromium\.launch\(' *.mjs; then echo 'a script launches its own browser per call'; exit 1; fi
 grep -q 'connectOverCDP' genimg.mjs
+# attachments go to an input that accepts several files, never blindly to the first one on the page
+grep -q -F 'input[type="file"][multiple]' genimg.mjs
 # a call reuses the open tab: no script closes a tab, and only login opens one
 if grep -n -E '\.close\(' *.mjs | grep -v -F 'browser.close('; then echo 'a script closes a tab or a context per call'; exit 1; fi
 [ "$(grep -c 'newPage()' genimg.mjs)" = 2 ] || { echo 'expected exactly two newPage() sites: the no-tab fallback and login'; exit 1; }
