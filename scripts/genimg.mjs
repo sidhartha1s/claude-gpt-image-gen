@@ -151,7 +151,10 @@ async function sendMessage(page, site, text, attachFiles) {
   const box = site.box(page);
   await box.waitFor({ timeout: 30_000 });
   if (attachFiles?.length) {
-    await page.locator('input[type="file"]').first().setInputFiles(attachFiles);
+    // ChatGPT put a single-file "Take a photo" input ahead of its upload inputs (seen 2026-10-11), and a single-file
+    // input rejects two attachments. Take the first input that accepts several files; a page with none keeps the first.
+    const multi = page.locator('input[type="file"][multiple]');
+    await ((await multi.count()) ? multi : page.locator('input[type="file"]')).first().setInputFiles(attachFiles);
   }
   await box.click();
   // never fill(): on Quill (Gemini) it paints the DOM without updating the editor model,
