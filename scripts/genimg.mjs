@@ -71,7 +71,8 @@ async function withPage(profile, fn) {
     if (!browser) {
       spawn(CHROME, [`--user-data-dir=${dir}`, `--remote-debugging-port=${port}`, '--disable-blink-features=AutomationControlled',
         '--no-first-run', '--no-default-browser-check',
-        // off-screen but headed (headless trips bot checks): a run must never pop a window over the owner's work; login stays visible
+        // an off-screen window counts as hidden: keep its timers and paints at full speed
+        '--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding', '--disable-background-timer-throttling',
         ...(cmd === 'login' ? [] : ['--window-position=-32000,-32000'])], { detached: true, stdio: 'ignore' }).unref();
       const deadline = Date.now() + 20_000; // one bound on the whole wait, however slowly a port answers
       while (!browser && Date.now() < deadline) { await new Promise((r) => setTimeout(r, 1000)); browser = await attach(); }
@@ -79,6 +80,12 @@ async function withPage(profile, fn) {
     }
     const ctx = browser.contexts()[0];
     const page = ctx.pages().find((p) => !p.isClosed()) ?? await ctx.newPage(); // a new tab only when none is open
+    // headed (headless trips bot checks) but off-screen, so a run never pops a window over the owner's work; login is
+    // shown because he types in it. Set on every attach: the Chrome may have been started by the other kind of command.
+    const cdp = await ctx.newCDPSession(page);
+    const { windowId } = await cdp.send('Browser.getWindowForTarget');
+    await cdp.send('Browser.setWindowBounds', { windowId, bounds: { windowState: 'normal' } });
+    await cdp.send('Browser.setWindowBounds', { windowId, bounds: cmd === 'login' ? { left: 80, top: 60 } : { left: -32000, top: -32000 } });
     try {
       return await fn(page, ctx);
     } finally {
