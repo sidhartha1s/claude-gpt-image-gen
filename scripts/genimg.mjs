@@ -70,7 +70,9 @@ async function withPage(profile, fn) {
     let browser = await attach();
     if (!browser) {
       spawn(CHROME, [`--user-data-dir=${dir}`, `--remote-debugging-port=${port}`, '--disable-blink-features=AutomationControlled',
-        '--no-first-run', '--no-default-browser-check'], { detached: true, stdio: 'ignore' }).unref();
+        '--no-first-run', '--no-default-browser-check',
+        // off-screen but headed (headless trips bot checks): a run must never pop a window over the owner's work; login stays visible
+        ...(cmd === 'login' ? [] : ['--window-position=-32000,-32000'])], { detached: true, stdio: 'ignore' }).unref();
       const deadline = Date.now() + 20_000; // one bound on the whole wait, however slowly a port answers
       while (!browser && Date.now() < deadline) { await new Promise((r) => setTimeout(r, 1000)); browser = await attach(); }
       if (!browser) throw new Error(`Chrome for profile dir "${dirOf(profile)}" did not answer on port ${port}. Either a Chrome is already open on that profile without the debug port (close that window once, then rerun), or another program holds the port.`);
